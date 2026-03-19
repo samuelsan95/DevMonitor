@@ -13,6 +13,8 @@ struct NetworkProcess: Identifiable {
     let pid: Int
     let name: String
     let port: Int
+    let command: String   // comando completo con el que se lanzó el proceso
+    let workDir: String   // directorio de trabajo desde donde se lanzó
     
     var icon: String {
         let n = name.lowercased()

@@ -13,6 +13,7 @@ struct ContentView: View {
     @State private var launchAtStartup: Bool = SMAppService.mainApp.status == .enabled
     @State private var showSettings: Bool = false
     @State private var searchText: String = ""
+    @State private var showHistory: Bool = false
     
     private var filteredProcesses: [NetworkProcess] {
         if searchText.isEmpty {
@@ -69,7 +70,13 @@ struct ContentView: View {
                 }
                 .buttonStyle(.borderless)
                 
-                Button(action: { withAnimation { showSettings.toggle() } }) {
+                Button(action: { withAnimation { showHistory.toggle(); showSettings = false } }) {
+                    Image(systemName: "clock.arrow.circlepath")
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(showHistory ? .primary : .secondary)
+
+                Button(action: { withAnimation { showSettings.toggle(); showHistory = false } }) {
                     Image(systemName: "gearshape")
                 }
                 .buttonStyle(.borderless)
@@ -93,52 +100,113 @@ struct ContentView: View {
 
             Divider()
 
-            // Lista de procesos
-            if filteredProcesses.isEmpty {
-                Spacer()
-                Text("No hay servicios corriendo")
-                    .foregroundStyle(.secondary)
-                Spacer()
-            } else {
-                List(filteredProcesses) { process in
-                    HStack {
-                        // Indicador verde
-                        Image(systemName: process.icon)
-                            .foregroundStyle(process.color)
-                            .frame(width: 20, height: 20)
-
-                        // Info del proceso
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(process.name)
-                                .fontWeight(.medium)
-                            Text("PID: \(process.pid)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Spacer()
-
-                        // Puerto
-                        Text(":\(process.port)")
-                            .font(.system(.body, design: .monospaced))
-                            .foregroundStyle(.blue)
-                        
-                        Button(action: { openInBrowser(port: process.port) }) {
-                            Image(systemName: "safari")
-                        }
-                        .buttonStyle(.borderless)
-                        .foregroundStyle(.blue)
-
-                        // Botón stop
-                        Button("Stop") {
-                            monitor.stop(process)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.red)
+            if showHistory {
+                // ── Vista de historial ──
+                HStack {
+                    Text("Historial de sesión")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if !monitor.history.isEmpty {
+                        Button("Limpiar") { monitor.clearHistory() }
+                            .font(.caption)
+                            .buttonStyle(.borderless)
+                            .foregroundStyle(.red)
                     }
-                    .padding(.vertical, 4)
                 }
-                .frame(minWidth: 420, minHeight: 300)
+                .padding(.horizontal)
+                .padding(.top, 6)
+
+                if monitor.history.filter({ !$0.isActive }).isEmpty {
+                    Spacer()
+                    Text("Ningún servicio detenido todavía")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                } else {
+                    List(monitor.history.filter { !$0.isActive }) { entry in
+                        HStack(spacing: 10) {
+                            // Dot de estado
+                            Circle()
+                                .fill(entry.isActive ? Color.green : Color.gray.opacity(0.5))
+                                .frame(width: 8, height: 8)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(entry.name)
+                                    .fontWeight(.medium)
+                                Text(entry.isActive ? "Activo" : "Detenido")
+                                    .font(.caption)
+                                    .foregroundStyle(entry.isActive ? .green : .secondary)
+                            }
+
+                            Spacer()
+
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text(":\(entry.port)")
+                                    .font(.system(.body, design: .monospaced))
+                                    .foregroundStyle(.blue)
+                                Text("⏱ \(entry.duration)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            // Botón reiniciar — solo visible si está detenido y tenemos comando
+                            if !entry.isActive && !entry.command.isEmpty {
+                                Button(action: { monitor.restart(entry) }) {
+                                    Image(systemName: "play.circle.fill")
+                                }
+                                .buttonStyle(.borderless)
+                                .foregroundStyle(.green)
+                                .help(entry.command)  // tooltip con el comando completo
+                            }
+                        }
+                        .padding(.vertical, 3)
+                    }
+                    .frame(minWidth: 420, minHeight: 300)
+                }
+            } else {
+                // ── Vista de procesos activos ──
+                if filteredProcesses.isEmpty {
+                    Spacer()
+                    Text("No hay servicios corriendo")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                } else {
+                    List(filteredProcesses) { process in
+                        HStack {
+                            Image(systemName: process.icon)
+                                .foregroundStyle(process.color)
+                                .frame(width: 20, height: 20)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(process.name)
+                                    .fontWeight(.medium)
+                                Text("PID: \(process.pid)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+
+                            Text(":\(process.port)")
+                                .font(.system(.body, design: .monospaced))
+                                .foregroundStyle(.blue)
+
+                            Button(action: { openInBrowser(port: process.port) }) {
+                                Image(systemName: "safari")
+                            }
+                            .buttonStyle(.borderless)
+                            .foregroundStyle(.blue)
+
+                            Button("Stop") {
+                                monitor.stop(process)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.red)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .frame(minWidth: 420, minHeight: 300)
+                }
             }
         }
         .onAppear {
