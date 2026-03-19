@@ -7,11 +7,14 @@
 
 import SwiftUI
 
+
 @main
 struct DevMonitorApp: App {
     var body: some Scene {
-        WindowGroup {
+        MenuBarExtra("DevMonitor", image: "MenuBarIcon") {
             ContentView()
         }
+        .menuBarExtraStyle(.window)
     }
 }
+
