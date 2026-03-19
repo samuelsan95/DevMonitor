@@ -1,0 +1,13 @@
+# Xcode user data (contains personal info like username, breakpoints, UI state)
+xcuserdata/
+*.xcuserstate
+*.xcuserdatad/
+
+# Build output
+build/
+DerivedData/
+*.o
+*.d
+
+# macOS
+.DS_Store
